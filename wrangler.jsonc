@@ -1,0 +1,27 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "thasmo-croissant-coffee-website",
+	"compatibility_date": "2026-05-01",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	"assets": {
+		"directory": "./dist/"
+	},
+	"preview_urls": true,
+	"routes": [
+		{
+			"pattern": "croissant.coffee",
+			"custom_domain": true
+		},
+		{
+			"pattern": "www.croissant.coffee",
+			"custom_domain": true
+		}
+	]
+}

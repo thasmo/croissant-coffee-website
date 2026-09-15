@@ -1,0 +1,43 @@
+---
+import EmojiDropSide from '../components/EmojiDropSide.astro';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>🥐 × ☕</title>
+		<style>
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+				user-select: none;
+				-webkit-user-select: none;
+			}
+			html,
+			body {
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+				touch-action: none;
+			}
+			.split-container {
+				display: flex;
+				width: 100vw;
+				height: 100vh;
+				height: 100dvh;
+				position: relative;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class="split-container">
+			<EmojiDropSide color="#f7e47e" emoji="🥐" />
+			<EmojiDropSide color="#ee6b67" emoji="☕" />
+		</div>
+	</body>
+</html>

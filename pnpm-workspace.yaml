@@ -1,0 +1,11 @@
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
+blockExoticSubdeps: true
+enablePrePostScripts: false
+optimisticRepeatInstall: true
+shellEmulator: true
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 10080
+verifyDepsBeforeRun: install
