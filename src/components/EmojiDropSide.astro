@@ -70,202 +70,209 @@ const { color, emoji } = Astro.props;
 </style>
 
 <script>
-	import Matter from 'matter-js';
-	import * as Tone from 'tone';
+import Matter from 'matter-js';
+import * as Tone from 'tone';
 
-	const MatterLib = (Matter as any).default ?? Matter;
-	const { Engine, Runner, Bodies, Composite, Events, Body } = MatterLib;
+const MatterLib = (Matter as any).default ?? Matter;
+const { Engine, Runner, Bodies, Composite, Events, Body } = MatterLib;
 
-	const EMOJI_SIZE = 48;
-	const EMOJI_RADIUS = 22;
-	const WALL_THICKNESS = 60;
-	const SPAWN_INTERVAL = 25;
+const EMOJI_SIZE = 48;
+const EMOJI_RADIUS = 22;
+const WALL_THICKNESS = 60;
+const SPAWN_INTERVAL = 25;
 
-	function createWalls(width: number, height: number) {
-		const wallOptions = { isStatic: true, slop: 0.01 };
-		return {
-			ground: Bodies.rectangle(width / 2, height + WALL_THICKNESS / 2, width * 2, WALL_THICKNESS, wallOptions),
-			leftWall: Bodies.rectangle(-WALL_THICKNESS / 2, height / 2, WALL_THICKNESS, height * 2, wallOptions),
-			rightWall: Bodies.rectangle(width + WALL_THICKNESS / 2, height / 2, WALL_THICKNESS, height * 2, wallOptions),
-		};
-	}
+function createWalls(width: number, height: number) {
+	const wallOptions = { isStatic: true, slop: 0.01 };
+	return {
+		ground: Bodies.rectangle(width / 2, height + WALL_THICKNESS / 2, width * 2, WALL_THICKNESS, wallOptions),
+		leftWall: Bodies.rectangle(-WALL_THICKNESS / 2, height / 2, WALL_THICKNESS, height * 2, wallOptions),
+		rightWall: Bodies.rectangle(width + WALL_THICKNESS / 2, height / 2, WALL_THICKNESS, height * 2, wallOptions),
+	};
+}
 
-	function positionWalls(walls: ReturnType<typeof createWalls>, width: number, height: number) {
-		Body.setPosition(walls.ground, { x: width / 2, y: height + WALL_THICKNESS / 2 });
-		Body.setPosition(walls.leftWall, { x: -WALL_THICKNESS / 2, y: height / 2 });
-		Body.setPosition(walls.rightWall, { x: width + WALL_THICKNESS / 2, y: height / 2 });
-	}
+function positionWalls(walls: ReturnType<typeof createWalls>, width: number, height: number) {
+	Body.setPosition(walls.ground, { x: width / 2, y: height + WALL_THICKNESS / 2 });
+	Body.setPosition(walls.leftWall, { x: -WALL_THICKNESS / 2, y: height / 2 });
+	Body.setPosition(walls.rightWall, { x: width + WALL_THICKNESS / 2, y: height / 2 });
+}
 
-	const COFFEE_NOTES = ['C4', 'D4', 'E4', 'G4', 'A4'];
-	const CROISSANT_NOTES = ['C3', 'D3', 'E3', 'G3', 'A3'];
+const COFFEE_NOTES = ['C4', 'D4', 'E4', 'G4', 'A4'];
+const CROISSANT_NOTES = ['C3', 'D3', 'E3', 'G3', 'A3'];
 
-	function createSpawnSound(isCoffee: boolean) {
-		const filter = new Tone.Filter(2000, 'lowpass').toDestination();
-		const reverb = new Tone.Reverb({ decay: 1.8, wet: 0.28 }).connect(filter);
+function createSpawnSound(isCoffee: boolean) {
+	const filter = new Tone.Filter(2000, 'lowpass').toDestination();
+	const reverb = new Tone.Reverb({ decay: 1.8, wet: 0.28 }).connect(filter);
 
-		const synth = isCoffee
-			? new Tone.FMSynth({
-					harmonicity: 1,
-					modulationIndex: 0.5,
-					oscillator: { type: 'sine' },
-					modulation: { type: 'sine' },
-					envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.9 },
-					modulationEnvelope: { attack: 0.02, decay: 0.3, sustain: 0, release: 0.3 },
-				}).connect(reverb)
-			: new Tone.Synth({
-					oscillator: { type: 'triangle' },
-					envelope: { attack: 0.01, decay: 0.35, sustain: 0, release: 0.6 },
-				}).connect(reverb);
+	const synth = isCoffee
+		? new Tone.FMSynth({
+				harmonicity: 1,
+				modulationIndex: 0.5,
+				oscillator: { type: 'sine' },
+				modulation: { type: 'sine' },
+				envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.9 },
+				modulationEnvelope: { attack: 0.02, decay: 0.3, sustain: 0, release: 0.3 },
+			}).connect(reverb)
+		: new Tone.Synth({
+				oscillator: { type: 'triangle' },
+				envelope: { attack: 0.01, decay: 0.35, sustain: 0, release: 0.6 },
+			}).connect(reverb);
 
-		synth.volume.value = -12;
+	synth.volume.value = -12;
 
-		const notes = isCoffee ? COFFEE_NOTES : CROISSANT_NOTES;
+	const notes = isCoffee ? COFFEE_NOTES : CROISSANT_NOTES;
 
-		return function playSpawnSound() {
-			const note = notes[Math.floor(Math.random() * notes.length)];
-			const detuneCents = (Math.random() - 0.5) * 30;
-			const frequency = Tone.Frequency(note).transpose(detuneCents / 100).toFrequency();
-			const velocity = 0.5 + Math.random() * 0.3;
+	return function playSpawnSound() {
+		const note = notes[Math.floor(Math.random() * notes.length)];
+		const detuneCents = (Math.random() - 0.5) * 30;
+		const frequency = Tone.Frequency(note).transpose(detuneCents / 100).toFrequency();
+		const velocity = 0.5 + Math.random() * 0.3;
 
-			synth.triggerAttackRelease(frequency, '8n', Tone.now(), velocity);
-		};
-	}
+		synth.triggerAttackRelease(frequency, '8n', Tone.now(), velocity);
+	};
+}
 
-	function createSideSimulation(element: HTMLElement) {
-		const emoji = element.dataset.emoji ?? '';
-		const isCoffee = emoji === '☕';
-		const playSpawnSound = createSpawnSound(isCoffee);
+function createSideSimulation(element: HTMLElement) {
+	const emoji = element.dataset.emoji ?? '';
+	const isCoffee = emoji === '☕';
+	const playSpawnSound = createSpawnSound(isCoffee);
 
-		const engine = Engine.create({
-			gravity: { x: 0, y: 1, scale: 0.0015 },
-			positionIterations: 12,
-			velocityIterations: 10,
-		});
+	const engine = Engine.create({
+		gravity: { x: 0, y: 1, scale: 0.0015 },
+		positionIterations: 12,
+		velocityIterations: 10,
+	});
 
-		const runner = Runner.create();
-		Runner.run(runner, engine);
+	const runner = Runner.create();
+	Runner.run(runner, engine);
 
-		const walls = createWalls(element.clientWidth, element.clientHeight);
-		Composite.add(engine.world, [walls.ground, walls.leftWall, walls.rightWall]);
+	const walls = createWalls(element.clientWidth, element.clientHeight);
+	Composite.add(engine.world, [walls.ground, walls.leftWall, walls.rightWall]);
 
-		const items: Array<{ body: Matter.Body; el: HTMLElement }> = [];
+	const items: Array<{ body: Matter.Body; el: HTMLElement }> = [];
 
-		window.addEventListener('resize', () => {
-			const width = element.clientWidth;
-			const height = element.clientHeight;
+	window.addEventListener('resize', () => {
+		const width = element.clientWidth;
+		const height = element.clientHeight;
 
-			positionWalls(walls, width, height);
+		positionWalls(walls, width, height);
 
-			for (const { body } of items) {
-				const x = Math.min(Math.max(body.position.x, EMOJI_RADIUS), width - EMOJI_RADIUS);
-				const y = Math.min(body.position.y, height - EMOJI_RADIUS);
+		for (const { body } of items) {
+			const x = Math.min(Math.max(body.position.x, EMOJI_RADIUS), width - EMOJI_RADIUS);
+			const y = Math.min(body.position.y, height - EMOJI_RADIUS);
 
-				if (x !== body.position.x || y !== body.position.y) {
-					Body.setPosition(body, { x, y });
-				}
+			if (x !== body.position.x || y !== body.position.y) {
+				Body.setPosition(body, { x, y });
 			}
-		});
+		}
+	});
 
-		function spawn(x: number, y: number, { flash = true, sound = true } = {}) {
-			const offset = EMOJI_SIZE / 2;
-			const el = document.createElement('div');
-			el.className = 'emoji-item';
-			el.style.transform = `translate3d(${x - offset}px, ${y - offset}px, 0)`;
+	function spawn(x: number, y: number, { flash = true, sound = true } = {}) {
+		const offset = EMOJI_SIZE / 2;
+		const el = document.createElement('div');
+		el.className = 'emoji-item';
+		el.style.transform = `translate3d(${x - offset}px, ${y - offset}px, 0)`;
 
-			const inner = document.createElement('span');
-			inner.className = 'emoji-item-inner';
-			inner.textContent = emoji;
-			el.appendChild(inner);
+		const inner = document.createElement('span');
+		inner.className = 'emoji-item-inner';
+		inner.textContent = emoji;
+		el.appendChild(inner);
 
-			element.appendChild(el);
+		element.appendChild(el);
 
-			if (flash) {
-				element.classList.remove('flash');
-				void element.offsetWidth;
-				element.classList.add('flash');
-			}
-
-			const body = Bodies.circle(x, y, EMOJI_RADIUS, {
-				restitution: 0.2,
-				friction: 0.3,
-				frictionStatic: 0.6,
-				frictionAir: 0.008,
-				density: 0.004,
-				slop: 0.01,
-			});
-
-			Body.setVelocity(body, { x: (Math.random() - 0.5) * 3, y: Math.random() * 2 });
-			Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2);
-
-			Composite.add(engine.world, body);
-			items.push({ body, el });
-
-			if (sound) playSpawnSound();
+		if (flash) {
+			element.classList.remove('flash');
+			void element.offsetWidth;
+			element.classList.add('flash');
 		}
 
-		Events.on(engine, 'afterUpdate', () => {
-			const offset = EMOJI_SIZE / 2;
-			for (const { body, el } of items) {
-				el.style.transform = `translate3d(${body.position.x - offset}px, ${body.position.y - offset}px, 0) rotate(${body.angle}rad)`;
-			}
+		const body = Bodies.circle(x, y, EMOJI_RADIUS, {
+			restitution: 0.2,
+			friction: 0.3,
+			frictionStatic: 0.6,
+			frictionAir: 0.008,
+			density: 0.004,
+			slop: 0.01,
 		});
 
-		setTimeout(
-			() => {
-				spawn(element.clientWidth / 2, element.clientHeight / 2, { flash: false, sound: false });
-			},
-			isCoffee ? 2000 : 1000,
-		);
+		Body.setVelocity(body, { x: (Math.random() - 0.5) * 3, y: Math.random() * 2 });
+		Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.2);
 
-		return spawn;
+		Composite.add(engine.world, body);
+		items.push({ body, el });
+
+		if (sound)
+			playSpawnSound();
 	}
 
-	const sides = new Map<HTMLElement, ReturnType<typeof createSideSimulation>>();
-
-	document.querySelectorAll<HTMLElement>('.side').forEach((element) => {
-		sides.set(element, createSideSimulation(element));
+	Events.on(engine, 'afterUpdate', () => {
+		const offset = EMOJI_SIZE / 2;
+		for (const { body, el } of items) {
+			el.style.transform = `translate3d(${body.position.x - offset}px, ${body.position.y - offset}px, 0) rotate(${body.angle}rad)`;
+		}
 	});
 
-	let isPointerDown = false;
-	let lastClientPos = { x: 0, y: 0 };
-	let spawnInterval: ReturnType<typeof setInterval> | null = null;
+	setTimeout(
+		() => {
+			spawn(element.clientWidth / 2, element.clientHeight / 2, { flash: false, sound: false });
+		},
+		isCoffee ? 2000 : 1000,
+	);
 
-	function spawnAtLastPos() {
-		if (!isPointerDown) return;
+	return spawn;
+}
 
-		const target = document.elementFromPoint(lastClientPos.x, lastClientPos.y);
-		const sideElement = target?.closest<HTMLElement>('.side');
-		if (!sideElement) return;
+const sides = new Map<HTMLElement, ReturnType<typeof createSideSimulation>>();
 
-		const spawn = sides.get(sideElement);
-		if (!spawn) return;
+document.querySelectorAll<HTMLElement>('.side').forEach((element) => {
+	sides.set(element, createSideSimulation(element));
+});
 
-		const rect = sideElement.getBoundingClientRect();
-		spawn(lastClientPos.x - rect.left, lastClientPos.y - rect.top);
-	}
+let isPointerDown = false;
+let lastClientPos = { x: 0, y: 0 };
+let spawnInterval: ReturnType<typeof setInterval> | null = null;
 
-	document.addEventListener('pointerdown', (e) => {
-		if (!(e.target as HTMLElement)?.closest('.side')) return;
+function spawnAtLastPos() {
+	if (!isPointerDown)
+		return;
 
-		void Tone.start();
-		isPointerDown = true;
-		lastClientPos = { x: e.clientX, y: e.clientY };
-		spawnAtLastPos();
+	const target = document.elementFromPoint(lastClientPos.x, lastClientPos.y);
+	const sideElement = target?.closest<HTMLElement>('.side');
+	if (!sideElement)
+		return;
 
-		if (spawnInterval) clearInterval(spawnInterval);
-		spawnInterval = setInterval(spawnAtLastPos, SPAWN_INTERVAL);
-	});
+	const spawn = sides.get(sideElement);
+	if (!spawn)
+		return;
 
-	document.addEventListener('pointermove', (e) => {
-		lastClientPos = { x: e.clientX, y: e.clientY };
-	});
+	const rect = sideElement.getBoundingClientRect();
+	spawn(lastClientPos.x - rect.left, lastClientPos.y - rect.top);
+}
 
-	function stopSpawning() {
-		isPointerDown = false;
-		if (spawnInterval) clearInterval(spawnInterval);
-		spawnInterval = null;
-	}
+document.addEventListener('pointerdown', (e) => {
+	if (!(e.target as HTMLElement)?.closest('.side'))
+		return;
 
-	document.addEventListener('pointerup', stopSpawning);
-	document.addEventListener('pointercancel', stopSpawning);
+	void Tone.start();
+	isPointerDown = true;
+	lastClientPos = { x: e.clientX, y: e.clientY };
+	spawnAtLastPos();
+
+	if (spawnInterval)
+		clearInterval(spawnInterval);
+	spawnInterval = setInterval(spawnAtLastPos, SPAWN_INTERVAL);
+});
+
+document.addEventListener('pointermove', (e) => {
+	lastClientPos = { x: e.clientX, y: e.clientY };
+});
+
+function stopSpawning() {
+	isPointerDown = false;
+	if (spawnInterval)
+		clearInterval(spawnInterval);
+	spawnInterval = null;
+}
+
+document.addEventListener('pointerup', stopSpawning);
+document.addEventListener('pointercancel', stopSpawning);
 </script>
