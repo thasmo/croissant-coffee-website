@@ -18,6 +18,7 @@
 		"prepare:astro": "astro sync",
 		"lint": "concurrently --group --prefix-colors 'auto' 'pnpm:lint:*'",
 		"lint:eslint": "eslint .",
+		"lint:astro": "astro check",
 		"lint:cspell": "cspell --no-progress --no-summary --no-must-find-files .",
 		"lint:knip": "knip --no-progress",
 		"fix": "concurrently --group --prefix-colors 'auto' 'pnpm:fix:*'",
@@ -32,12 +33,14 @@
 		"tone": "^15.1.22"
 	},
 	"devDependencies": {
+		"@astrojs/check": "^0.9.12",
 		"@commitlint/cli": "^21.0.0",
 		"@somehow-digital/commitlint-config": "^1.0.0",
 		"@somehow-digital/cspell-dictionary": "^2.0.0",
 		"@somehow-digital/eslint-config": "^5.0.0",
 		"@somehow-digital/typescript-config": "^3.0.0",
 		"@somehow-digital/unocss-preset": "^2.0.0",
+		"@types/matter-js": "^0.20.2",
 		"@types/node": "^24.0.0",
 		"@unocss/astro": "^66.6.6",
 		"@unocss/preset-web-fonts": "^66.3.3",
